@@ -5,6 +5,7 @@
 
 
 #define BNO055_SAMPLERATE_DELAY_MS (500)
+#define MODEM_ADDRESS 8
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 
@@ -38,19 +39,45 @@ void setup() {
   Wire.begin(); // join i2c bus (address optional for master)
   
 }
-
+int8_t temp;
 byte x = 0;
+byte y = 0;
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Wire.beginTransmission(8); // transmit to device #8
-  Wire.write("Test #: ");
+  Serial.print("Sent: ");
+  Serial.print(x);
+  Serial.print("\n");
+  Wire.beginTransmission(MODEM_ADDRESS); // transmit to modem
+  Wire.write("Test from teensy: ");
   Wire.write(x);
   Wire.endTransmission(); // stop transmitting
 
   x++;
-  //delay(500);
-imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  delay(500);
+
+  Serial.println("Request data from Slave: ");
+  Wire.requestFrom(MODEM_ADDRESS, 16);
+
+  int bytes = Wire.available();
+  Serial.print("Slave sent ");
+  Serial.print(bytes);
+  Serial.print("bytes of information\n");
+  for(int i = 0; i< bytes; i++)
+  {
+    y = Wire.read();
+    Serial.print("Slave sent: ");
+    Serial.print(y);
+    Serial.print("\n");
+  }
+  
+  
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  temp = bno.getTemp();
+  Serial.print("Temperature: ");
+  Serial.print(temp);
+  Serial.print("\n");
+  
     /* Display the floating point data */
   Serial.print("X: ");
   Serial.print(euler.x());
@@ -74,3 +101,5 @@ imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
   delay(BNO055_SAMPLERATE_DELAY_MS);
   
 }
+
+
