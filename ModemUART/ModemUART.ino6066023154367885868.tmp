@@ -1,0 +1,40 @@
+#define MODEMSERIAL Serial1
+
+unsigned long time;
+char myChar;
+
+void setup() {
+  // put your setup code here, to run once:
+    Serial.begin(9600);
+    MODEMSERIAL.begin(9600);
+    
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  
+  time = millis();
+  
+  if(MODEMSERIAL.available() > 0) {
+    Serial.print("UART received: ");
+    myChar = MODEMSERIAL.read(); 
+    Serial.println(myChar); 
+    Serial.print("Char Code: ");
+    Serial.println(myChar, DEC);
+    Serial.print("Time: ");
+    Serial.println(time);
+    Serial.println("");
+    
+  }
+
+  if(time%10000 == 0)
+  {
+    Serial.println("Sent Message!");
+    Serial1.print("hi");
+  }
+
+  
+
+  
+
+}

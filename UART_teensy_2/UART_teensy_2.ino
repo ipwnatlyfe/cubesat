@@ -1,0 +1,124 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+
+
+#define MODEMSERIAL Serial1
+#define BNO055_SAMPLERATE_DELAY_MS 100
+#define MODEM_COMMAND_DELAY_MS 100
+#define TRANSMIT_DELAY_MS 1000
+#define SEND_RATE_MS 10000
+
+Adafruit_BNO055 bno = Adafruit_BNO055();
+
+const int transmitSwitch = 14;
+unsigned long currTime = 0;
+unsigned long prevTime = 0;
+char myChar;
+String inputString = "";
+boolean stringDone = false;
+int8_t temp;
+int seqCount = 1;
+
+void setup() {
+  // put your setup code here, to run once:
+    Serial.begin(9600);
+    MODEMSERIAL.begin(9600);
+
+    pinMode(transmitSwitch, OUTPUT);
+
+    Serial1.print("cKG7YTV");
+    delay(MODEM_COMMAND_DELAY_MS);
+    Serial1.print("sc2");
+    delay(MODEM_COMMAND_DELAY_MS);
+    Serial1.print("mKG7YTV");
+    delay(MODEM_COMMAND_DELAY_MS);
+    Serial1.print("ms1");
+    delay(MODEM_COMMAND_DELAY_MS);
+
+    if(!bno.begin())
+    {
+      Serial.print("Oops, no BNO055 detected... Check your wiring or I2C ADDR!");
+      while(1);
+    }
+
+    delay(1000);
+
+    bno.setExtCrystalUse(true);
+    
+}
+
+void loop() {
+  // Possible vector values for BNO can be:
+  // - VECTOR_ACCELEROMETER - m/s^2
+  // - VECTOR_MAGNETOMETER  - uT
+  // - VECTOR_GYROSCOPE     - rad/s
+  // - VECTOR_EULER         - degrees
+  // - VECTOR_LINEARACCEL   - m/s^2
+  // - VECTOR_GRAVITY       - m/s^2
+  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  
+  currTime = millis();
+  temp = bno.getTemp();
+
+  getMessage();
+
+  if (stringDone)
+  {
+    Serial.print(inputString);
+    inputString= "";
+    stringDone = false;
+  }
+
+  if((currTime - prevTime) > SEND_RATE_MS)
+  {
+    
+    digitalWrite(transmitSwitch, HIGH);
+    delay(TRANSMIT_DELAY_MS);
+    //MODEMSERIAL.print("#plz work");
+//    Serial.println(euler.x());
+//    Serial.println(euler.y());
+//    Serial.println(euler.z());
+    MODEMSERIAL.print( CreateTelemetryMessage(seqCount, euler.x(), euler.y(), euler.z(), temp));
+    delay(TRANSMIT_DELAY_MS);
+    digitalWrite(transmitSwitch, LOW);
+    seqCount++;
+    if(seqCount > 999)
+    {
+      seqCount = 1;
+    }
+    prevTime = currTime;
+  }
+
+  
+
+
+  delay(BNO055_SAMPLERATE_DELAY_MS);
+}
+String CreateTelemetryMessage(int seq, float x, float y, float z, int8_t temp)
+{
+  String xCoord = String(x,4);
+  String yCoord = String(y,4);
+  String zCoord = String(z,4);
+  String Seq = String(seq, DEC);
+  String Temp = String(temp, DEC);
+
+  String TelemetryString = String("!"+ Seq+ ", "  +xCoord + ", " + yCoord + ", " + zCoord + ", " + Temp + "     KEY: count,x,y,z,temp");
+
+  return TelemetryString;
+}
+
+
+void getMessage() {
+  while (MODEMSERIAL.available()){
+    myChar = MODEMSERIAL.read();
+    inputString += myChar;
+
+    if (myChar == '\n')
+    {
+      stringDone = true;
+    }
+  }
+}
+
